@@ -166,7 +166,7 @@ def build_seq2seq_decoder(num_classes: int, max_len: int, hidden_dim: int,
 
 
 def load_test_model(opt, device):
-    model = torch.load(opt.model_path, map_location=lambda storage, loc: storage).to(device)
+    model = torch.load(opt.model_path, map_location=device).module.to(device)
 
     if isinstance(model, nn.DataParallel):
         model.module.decoder.device = device

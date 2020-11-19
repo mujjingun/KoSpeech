@@ -8,6 +8,12 @@ from kospeech.data.audio.core import load_audio
 from kospeech.model_builder import load_test_model
 from kospeech.utils import label_to_string, id2char, EOS_token
 
+import warnings
+warnings.filterwarnings(
+    action='ignore',
+    category=torch.serialization.SourceChangeWarning,
+    module=r'.*'
+)
 
 def parse_audio(audio_path: str, del_silence: bool = True) -> Tensor:
     signal = load_audio(audio_path, del_silence)
@@ -33,10 +39,34 @@ input_length = torch.IntTensor([len(feature_vector)])
 model = load_test_model(opt, opt.device)
 model.eval()
 
-output = model(inputs=feature_vector.unsqueeze(0), input_lengths=input_length,
-               teacher_forcing_ratio=0.0, return_decode_dict=False)
+print(feature_vector.shape, input_length.shape)
+
+class Proxy(torch.nn.Module):
+    def __init__(self, model):
+        super(Proxy, self).__init__()
+        self.model = model
+
+    def forward(self, x):
+        return self.model(inputs=x.unsqueeze(0), input_lengths=torch.IntTensor([feature_vector.shape[0]])
+, teacher_forcing_ratio=0.0, return_decode_dict=False)
+
+proxy = Proxy(model)
+torch.quantization.fuse_modules(proxy.model.encoder.conv.conv, [['0', '1'], ['3', '4'], ['7','8'], ['10', '11']], inplace=True)
+
+proxy_int8 = torch.quantization.quantize_dynamic(proxy, 
+        {torch.nn.Linear, torch.nn.Conv2d, torch.nn.BatchNorm2d, torch.nn.LSTM}, 
+        dtype=torch.qint8)
+
+print(proxy_int8)
+
+traced = torch.jit.trace(proxy_int8, (feature_vector.to(opt.device)))
+traced.save('model.zip')
+print(traced.code)
+
+output = proxy_int8(feature_vector)
 logit = torch.stack(output, dim=1).to(opt.device)
 pred = logit.max(-1)[1]
 
 sentence = label_to_string(pred.cpu().detach().numpy(), id2char, EOS_token)
 print(sentence)
+

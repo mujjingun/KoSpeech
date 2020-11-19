@@ -118,7 +118,7 @@ class SpeechDecoderRNN(BaseRNN):
     ) -> Tuple[Tensor, Optional[Any], Tensor]:
         batch_size, output_lengths = input_var.size(0), input_var.size(1)
 
-        embedded = self.embedding(input_var).to(self.device)
+        embedded = self.embedding(input_var)
         embedded = self.input_dropout(embedded)
 
         if self.training:
@@ -211,12 +211,14 @@ class SpeechDecoderRNN(BaseRNN):
         batch_size = encoder_outputs.size(0)
 
         if inputs is None:  # inference
-            inputs = LongTensor([self.sos_id] * batch_size).view(batch_size, 1)
+            inputs = LongTensor([self.sos_id]).repeat(batch_size).view(batch_size, 1)
+            #inputs = inputs.to(self.device)
             max_length = self.max_length
 
-            if torch.cuda.is_available():
-                inputs = inputs.cuda()
+            #if torch.cuda.is_available():
+            #    inputs = inputs.cuda()
 
+            print(teacher_forcing_ratio)
             if teacher_forcing_ratio > 0:
                 raise ValueError("Teacher forcing has to be disabled (set 0) when no inputs is provided.")
 

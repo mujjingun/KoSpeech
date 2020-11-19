@@ -4,9 +4,9 @@
 # This source code is licensed under the Apache 2.0 License license found in the
 # LICENSE file in the root directory of this source tree.
 
-MODEL_PATH='set_pretrain_model_path'
-AUDIO_PATH='data/sample/sample_audio.pcm'
-DEVICE='cuda'
+MODEL_PATH='/home/daniel/KoSpeech/model.pt'
+AUDIO_PATH='/home/daniel/KoSpeech/hi2.pcm'
+DEVICE='cpu'
 
 # shellcheck disable=SC2164
 cd bin
