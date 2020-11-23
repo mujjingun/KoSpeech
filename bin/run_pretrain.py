@@ -47,8 +47,10 @@ class Proxy(torch.nn.Module):
         self.model = model
 
     def forward(self, x):
-        return self.model(inputs=x.unsqueeze(0), input_lengths=torch.IntTensor([feature_vector.shape[0]])
-, teacher_forcing_ratio=0.0, return_decode_dict=False)
+        output = self.model(inputs=x.unsqueeze(0), input_lengths=torch.IntTensor([feature_vector.shape[0]]), teacher_forcing_ratio=0.0, return_decode_dict=False)
+        logit = torch.stack(output, dim=1)
+        pred = logit.max(-1)[1][0]
+        return pred
 
 proxy = Proxy(model)
 torch.quantization.fuse_modules(proxy.model.encoder.conv.conv, [['0', '1'], ['3', '4'], ['7','8'], ['10', '11']], inplace=True)
@@ -63,10 +65,11 @@ traced = torch.jit.trace(proxy_int8, (feature_vector.to(opt.device)))
 traced.save('model.zip')
 print(traced.code)
 
-output = proxy_int8(feature_vector)
-logit = torch.stack(output, dim=1).to(opt.device)
-pred = logit.max(-1)[1]
+with torch.no_grad():
+    pred = proxy_int8(feature_vector)
 
-sentence = label_to_string(pred.cpu().detach().numpy(), id2char, EOS_token)
+print(pred)
+
+sentence = label_to_string(pred.cpu().numpy(), id2char, EOS_token)
 print(sentence)
 

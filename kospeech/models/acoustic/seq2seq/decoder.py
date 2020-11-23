@@ -218,7 +218,6 @@ class SpeechDecoderRNN(BaseRNN):
             #if torch.cuda.is_available():
             #    inputs = inputs.cuda()
 
-            print(teacher_forcing_ratio)
             if teacher_forcing_ratio > 0:
                 raise ValueError("Teacher forcing has to be disabled (set 0) when no inputs is provided.")
 
